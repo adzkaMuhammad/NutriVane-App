@@ -38,6 +38,16 @@ const STR = {
     // profile
     language: "Bahasa", yourTargets: "Target Gizimu", editProfile: "Edit Profil",
     demoBadge: "Akun Demo",
+    // mood-based food
+    moodTab: "Mood", moodTitle: "Rekomendasi dari Mood",
+    moodHint: "Ambil foto wajahmu, AI menebak mood-mu lalu menyarankan makanan yang pas",
+    moodDisclaimer: "Deteksi mood ini eksperimental — hasilnya bisa meleset. Kamu yang paling tahu perasaanmu 💚",
+    detectMood: "Ambil / Pilih Foto Wajah", detectingMood: "Membaca mood...",
+    yourMood: "Mood kamu", craving: "Lagi pengen rasa apa?",
+    salty: "Asin", sweet: "Manis", balanced: "Seimbang",
+    getRecs: "Lihat Rekomendasi", gettingRecs: "Menyiapkan rekomendasi...",
+    recsTitle: "Rekomendasi untukmu", detectAgain: "Deteksi Lagi",
+    moodFailed: "Gagal membaca mood. Coba foto lain.",
   },
   en: {
     appName: "NutriVane",
@@ -70,6 +80,16 @@ const STR = {
     delete: "Delete", total: "Total",
     language: "Language", yourTargets: "Your Targets", editProfile: "Edit Profile",
     demoBadge: "Demo Account",
+    // mood-based food
+    moodTab: "Mood", moodTitle: "Mood-based Picks",
+    moodHint: "Snap your face, AI reads your mood then suggests food that fits",
+    moodDisclaimer: "This mood detection is experimental — it can be wrong. You know your feelings best 💚",
+    detectMood: "Take / Choose Face Photo", detectingMood: "Reading your mood...",
+    yourMood: "Your mood", craving: "Craving which taste?",
+    salty: "Salty", sweet: "Sweet", balanced: "Balanced",
+    getRecs: "See Recommendations", gettingRecs: "Preparing recommendations...",
+    recsTitle: "Picks for you", detectAgain: "Detect Again",
+    moodFailed: "Couldn't read mood. Try another photo.",
   },
 };
 

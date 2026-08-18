@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, History, User, Camera } from "lucide-react";
+import { Home, History, User, Camera, Smile } from "lucide-react";
 import { useI18n } from "@/i18n";
 
 export default function BottomTabBar() {
@@ -27,7 +27,7 @@ export default function BottomTabBar() {
     <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40">
       <div className="relative mx-3 mb-3 rounded-[28px] backdrop-blur-xl bg-white/85 border border-black/5 shadow-[0_-4px_30px_rgba(0,0,0,0.08)] flex items-center px-2 pt-2 pb-3">
         <Tab path="/home" icon={Home} label={t("home")} testid="tab-home" />
-        <Tab path="/history" icon={History} label={t("history")} testid="tab-history" />
+        <Tab path="/mood" icon={Smile} label={t("moodTab")} testid="tab-mood" />
         <div className="flex-1 flex justify-center">
           <button
             data-testid="tab-scan"
@@ -37,6 +37,7 @@ export default function BottomTabBar() {
             <Camera strokeWidth={2.5} size={28} color="#fff" />
           </button>
         </div>
+        <Tab path="/history" icon={History} label={t("history")} testid="tab-history" />
         <Tab path="/profile" icon={User} label={t("profile")} testid="tab-profile" />
       </div>
     </div>

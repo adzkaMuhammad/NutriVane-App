@@ -270,6 +270,68 @@ async def scan_spice(body: ScanIn, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=502, detail=f"AI estimasi gagal: {str(e)[:120]}")
     return data
 
+# ---------------- mood-based food ----------------
+class MoodRecommendIn(BaseModel):
+    mood: str
+    craving: str = "balanced"
+    language: str = "id"
+
+@api_router.post("/mood/detect")
+async def mood_detect(body: ScanIn, user: dict = Depends(get_current_user)):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI key not configured")
+    lang = "Bahasa Indonesia" if body.language == "id" else "English"
+    system = ("You read facial emotion from a selfie for a wellness app for teens. "
+              "Be gentle and non-clinical. Return ONLY JSON, no markdown.")
+    prompt = (
+        f"Look at the person's face and estimate their current mood. Reply readable fields in {lang}. "
+        "Return JSON: {\"mood\": one of [senang, biasa, lelah, sedih, stres, cemas, marah] "
+        "(use exactly these Indonesian keys), \"mood_label\": friendly label in the target language, "
+        "\"emoji\": single emoji, \"confidence\": \"low\"|\"medium\"|\"high\", "
+        "\"note\": one short warm sentence}. If no clear face, set mood to \"biasa\" and confidence \"low\"."
+    )
+    img = body.image_base64
+    if "," in img and img.strip().startswith("data:"):
+        img = img.split(",", 1)[1]
+    try:
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"mood-{user['id']}", system_message=system)
+        chat.with_model("gemini", "gemini-3-flash-preview")
+        resp = await chat.send_message(UserMessage(text=prompt, file_contents=[ImageContent(image_base64=img)]))
+        data = parse_json_block(resp if isinstance(resp, str) else str(resp))
+    except Exception as e:
+        logger.exception("mood detect failed")
+        raise HTTPException(status_code=502, detail=f"AI deteksi mood gagal: {str(e)[:120]}")
+    return data
+
+@api_router.post("/mood/recommend")
+async def mood_recommend(body: MoodRecommendIn, user: dict = Depends(get_current_user)):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI key not configured")
+    lang = "Bahasa Indonesia" if body.language == "id" else "English"
+    craving_map = {"salty": "asin/gurih", "sweet": "manis", "balanced": "seimbang"}
+    craving = craving_map.get(body.craving, body.craving)
+    goal = user.get("goal", "healthier")
+    system = ("You are a friendly Indonesian nutrition buddy for teens/santri. Suggest healthy, affordable, "
+              "pesantren-friendly Indonesian foods/drinks. Warm, not preachy. Return ONLY JSON, no markdown.")
+    prompt = (
+        f"User mood: {body.mood}. Craving taste: {craving}. Health goal: {goal}. "
+        f"Reply readable fields in {lang}. Suggest 4 foods/drinks that fit the mood and the craving "
+        "but are still a healthier choice. Return JSON: "
+        "{\"message\": one short encouraging sentence about the mood, "
+        "\"recommendations\": [{\"name_id\": Indonesian name, \"name_en\": English name, "
+        "\"emoji\": single food emoji, \"reason\": short why it helps this mood/craving, "
+        "\"calories\": approx kcal number}]}."
+    )
+    try:
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"moodrec-{user['id']}", system_message=system)
+        chat.with_model("gemini", "gemini-3-flash-preview")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        data = parse_json_block(resp if isinstance(resp, str) else str(resp))
+    except Exception as e:
+        logger.exception("mood recommend failed")
+        raise HTTPException(status_code=502, detail=f"AI rekomendasi gagal: {str(e)[:120]}")
+    return data
+
 # ---------------- food logs ----------------
 @api_router.post("/logs/food")
 async def log_food(body: LogFoodIn, user: dict = Depends(get_current_user)):
