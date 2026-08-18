@@ -8,6 +8,7 @@ import Onboarding from "@/pages/Onboarding";
 import Home from "@/pages/Home";
 import Scan from "@/pages/Scan";
 import MoodFood from "@/pages/MoodFood";
+import Diet from "@/pages/Diet";
 import History from "@/pages/History";
 import Profile from "@/pages/Profile";
 
@@ -44,6 +45,7 @@ function App() {
               <Route path="/home" element={<Protected><Home /></Protected>} />
               <Route path="/scan" element={<Protected><Scan /></Protected>} />
               <Route path="/mood" element={<Protected><MoodFood /></Protected>} />
+              <Route path="/diet" element={<Protected><Diet /></Protected>} />
               <Route path="/history" element={<Protected><History /></Protected>} />
               <Route path="/profile" element={<Protected><Profile /></Protected>} />
               <Route path="*" element={<Navigate to="/" replace />} />

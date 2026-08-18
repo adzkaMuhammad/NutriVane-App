@@ -332,6 +332,101 @@ async def mood_recommend(body: MoodRecommendIn, user: dict = Depends(get_current
         raise HTTPException(status_code=502, detail=f"AI rekomendasi gagal: {str(e)[:120]}")
     return data
 
+# ---------------- diet plan ----------------
+class DietPlanIn(BaseModel):
+    target_weight_kg: float
+    days: int = 30
+    intensity: str = "santai"      # santai | ekstrem
+    meals_per_day: str = "3"       # "2" | "3" | "4" | "flex"
+    budget: str = "terjangkau"     # terjangkau | sedang | mahal
+    language: str = "id"
+
+def compute_diet(user: dict, target_weight: float, days: int, intensity: str) -> dict:
+    base = compute_targets(user)
+    tdee = base["tdee"]
+    w = float(user.get("weight_kg") or 60)
+    gender = user.get("gender", "male")
+    delta = w - target_weight  # >0 lose, <0 gain
+    direction = "lose" if delta > 0.5 else ("gain" if delta < -0.5 else "maintain")
+    total_kcal = abs(delta) * 7700.0
+    days = max(int(days or 1), 1)
+    daily_change = total_kcal / days
+    cap = 1000.0 if intensity == "ekstrem" else 500.0
+    safe = daily_change <= cap + 1
+    applied = min(daily_change, cap)
+    days_min_safe = int((total_kcal / cap) + 0.999) if cap > 0 else days
+    floor = 1500 if gender == "male" else 1200
+    if direction == "lose":
+        calories = max(round(tdee - applied), floor)
+    elif direction == "gain":
+        calories = round(tdee + min(applied, 700))
+    else:
+        calories = round(tdee)
+    protein_g = round(1.8 * w) if direction != "maintain" else base["protein_g"]
+    fat_g = round(calories * 0.25 / 9)
+    carbs_g = max(round((calories - (protein_g * 4 + fat_g * 9)) / 4), 0)
+    return {
+        "direction": direction, "current_weight": w, "target_weight": target_weight,
+        "days": days, "days_min_safe": days_min_safe, "safe": safe, "intensity": intensity,
+        "daily_targets": {
+            "calories": calories, "protein_g": protein_g, "carbs_g": carbs_g,
+            "fat_g": fat_g, "sodium_mg": 2000, "sugar_g": 25, "salt_g": 5,
+        },
+    }
+
+@api_router.get("/diet/plan")
+async def get_diet_plan(user: dict = Depends(get_current_user)):
+    return user.get("diet_plan")
+
+@api_router.delete("/diet/plan")
+async def delete_diet_plan(user: dict = Depends(get_current_user)):
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$unset": {"diet_plan": ""}})
+    return {"ok": True}
+
+@api_router.post("/diet/plan")
+async def create_diet_plan(body: DietPlanIn, user: dict = Depends(get_current_user)):
+    calc = compute_diet(user, body.target_weight_kg, body.days, body.intensity)
+    lang = "Bahasa Indonesia" if body.language == "id" else "English"
+    meals_desc = {"2": "2 meals a day", "3": "3 meals a day", "4": "4 meals a day",
+                  "flex": "flexible / irregular small meals"}.get(body.meals_per_day, "3 meals a day")
+    budget_desc = {"terjangkau": "very affordable / cheap warung food", "sedang": "medium budget",
+                   "mahal": "slightly more expensive / premium"}.get(body.budget, "affordable")
+    dt = calc["daily_targets"]
+    system = ("You are an Indonesian nutrition & fitness coach for teens/santri. Build a realistic, "
+              "affordable, pesantren-friendly daily plan. Return ONLY JSON, no markdown.")
+    prompt = (
+        f"Goal: {calc['direction']} weight to {body.target_weight_kg} kg. "
+        f"Daily budget: {dt['calories']} kcal, protein {dt['protein_g']} g. "
+        f"Meals: {meals_desc}. Menu budget level: {budget_desc}. Intensity: {body.intensity}. "
+        f"Reply readable fields in {lang}. Return JSON: {{"
+        "\"menu\": [{\"meal\": label (Sarapan/Makan Siang/Makan Malam/Camilan), "
+        "\"items\": [{\"name_id\": string, \"name_en\": string, \"portion\": string, "
+        "\"calories\": number, \"protein_g\": number}]}], "
+        "\"exercises\": [{\"name_id\": string, \"name_en\": string, \"duration\": string (e.g. '20 menit'), "
+        "\"calories_burn\": number, \"note\": short string}], "
+        "\"tips\": [string, string, string]}. "
+        "Make total menu calories roughly match the daily budget. Suggest 3-4 exercises doable without a gym."
+    )
+    ai = {"menu": [], "exercises": [], "tips": []}
+    if EMERGENT_LLM_KEY:
+        try:
+            chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"diet-{user['id']}", system_message=system)
+            chat.with_model("gemini", "gemini-3-flash-preview")
+            resp = await chat.send_message(UserMessage(text=prompt))
+            parsed = parse_json_block(resp if isinstance(resp, str) else str(resp))
+            if isinstance(parsed, dict):
+                ai = {"menu": parsed.get("menu", []), "exercises": parsed.get("exercises", []),
+                      "tips": parsed.get("tips", [])}
+        except Exception:
+            logger.exception("diet plan AI failed")
+    plan = {
+        **calc, "meals_per_day": body.meals_per_day, "budget": body.budget,
+        "menu": ai["menu"], "exercises": ai["exercises"], "tips": ai["tips"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": {"diet_plan": plan}})
+    return plan
+
 # ---------------- food logs ----------------
 @api_router.post("/logs/food")
 async def log_food(body: LogFoodIn, user: dict = Depends(get_current_user)):
@@ -369,7 +464,8 @@ async def dashboard(date: Optional[str] = None, user: dict = Depends(get_current
     logs = await db.food_logs.find({"user_id": user["id"], "date": d}).to_list(500)
     all_items = [i for l in logs for i in l.get("items", [])]
     totals = sum_items(all_items)
-    targets = compute_targets(user)
+    plan = user.get("diet_plan")
+    targets = plan["daily_targets"] if plan else compute_targets(user)
     # weekly
     week = []
     base = datetime.strptime(d, "%Y-%m-%d")
@@ -380,7 +476,7 @@ async def dashboard(date: Optional[str] = None, user: dict = Depends(get_current
         s = sum_items(di)
         week.append({"date": day, "calories": s["calories"], "protein_g": s["protein_g"],
                      "sodium_mg": s["sodium_mg"], "sugar_g": s["sugar_g"]})
-    return {"date": d, "totals": totals, "targets": targets, "week": week}
+    return {"date": d, "totals": totals, "targets": targets, "week": week, "diet_plan": plan}
 
 # ---------------- seed ----------------
 INDO_FOODS = [
