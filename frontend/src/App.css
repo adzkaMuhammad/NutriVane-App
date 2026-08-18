@@ -1,0 +1,17 @@
+.phone-frame {
+    max-width: 28rem;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: #F9F9F6;
+    position: relative;
+    overflow-x: hidden;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.08);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(48%) sepia(79%) saturate(500%) hue-rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+}

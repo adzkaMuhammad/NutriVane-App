@@ -1,0 +1,116 @@
+{
+  "theme": "light",
+  "typography": {
+    "headings": {
+      "font_family": "Nunito",
+      "style": "Playful, friendly, tight tracking on large sizes to avoid feeling corporate",
+      "weights": "700, 800"
+    },
+    "body": {
+      "font_family": "Figtree, sans-serif",
+      "style": "Clean geometric sans, highly readable for dense nutritional data",
+      "weights": "400, 500, 600"
+    },
+    "scale": {
+      "h1": "text-3xl sm:text-4xl tracking-tight leading-tight",
+      "h2": "text-2xl sm:text-3xl tracking-tight",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base leading-relaxed",
+      "labels": "text-xs tracking-wider uppercase font-semibold"
+    },
+    "hierarchy_rules": "No more than 2 steps between heading sizes. Never center paragraphs by default."
+  },
+  "colors": {
+    "archetype": "Organic & Earthy + Youthful Energy",
+    "backgrounds": {
+      "primary": "#F9F9F6",
+      "secondary": "#FFFFFF",
+      "surface": "#F0F5ED"
+    },
+    "brand": {
+      "primary": "#22C55E",
+      "primary_hover": "#16A34A",
+      "accent_warning": "#F97316",
+      "accent_danger": "#EF4444",
+      "text_primary": "#1A1A1A",
+      "text_secondary": "#5C5C5C"
+    },
+    "rules": "Green for healthy/success states. Orange specifically for sugar/sodium warnings. High contrast text always."
+  },
+  "visual_enhancers": {
+    "borders": "1px solid border-green-900/5 for cards to give a subtle organic outline.",
+    "shadows": "Soft diffuse shadows shadow-[0_8px_32px_rgba(34,197,94,0.08)].",
+    "radius": "Generous rounded corners: rounded-3xl for main cards, rounded-full for buttons.",
+    "surfaces": {
+      "bottom_tab_bar": "Glassmorphism: backdrop-blur-xl bg-white/80 border-t border-black/5. NEVER transparent.",
+      "cards": "Solid background #FFFFFF or #F0F5ED. No glassmorphism on data cards."
+    }
+  },
+  "components": {
+    "cards": "Squishy, rounded-3xl, generous padding (p-6). Mobile-first bento grids.",
+    "buttons": "Pill-shaped (rounded-full). The center 'Scan' button on the tab bar MUST be oversized (e.g. h-16 w-16), protruding upwards with a drop-shadow and a vibrant green background.",
+    "rings": "Chunky, bright SVG rings for daily macros (Calories, Protein, Carbs, Fat, Salt, Sugar) with rounded stroke caps.",
+    "forms": "Large tap targets (min 48px height), rounded-2xl inputs, friendly placeholder texts.",
+    "testing": "MANDATORY data-testid on all interactive elements."
+  },
+  "layouts": {
+    "strategy": "Mobile-first PWA. On desktop, constrain the main layout to max-w-md mx-auto with a subtle background outside, mimicking a phone frame.",
+    "spacing": "Generous padding p-4 to p-6 on mobile containers. gap-4 or gap-6 between dashboard widgets.",
+    "bento_grid": "Use high-density mode for the Nutrition Dashboard: Calories (col-span-full), Macros (col-span-1 squares)."
+  },
+  "motion": {
+    "interactions": "Bouncy, spring-like active states (scale down to 0.95) for buttons.",
+    "page_transitions": "Slide up for the Scan camera view. Subtle fade for tab switching.",
+    "charts": "Animate rings filling up on load."
+  },
+  "accessibility": {
+    "contrast": "Ensure text over green or orange meets WCAG AA (use white or dark text accordingly).",
+    "touch_targets": "Minimum 48x48px for all tab icons and buttons.",
+    "motion": "Respect prefers-reduced-motion for animations."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1747292718361-c838a9968ec7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwyfHxmcmVzaCUyMGhlYWx0aHklMjBmb29kJTIwcGxhdGUlMjB0b3AlMjB2aWV3fGVufDB8fHx8MTc4NzA5MDY5MXww&ixlib=rb-4.1.0&q=85",
+        "description": "Colorful salad bowl for onboarding or empty states",
+        "category": "illustrations"
+      },
+      {
+        "url": "https://images.pexels.com/photos/8357144/pexels-photo-8357144.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Soothing abstract gradient for profile headers or auth backgrounds",
+        "category": "backgrounds"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1687672507171-8e5f01f3d16e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwyfHx0ZWVuYWdlciUyMGVhdGluZyUyMGhlYWx0aHklMjBoYXBweXxlbnwwfHx8fDE3ODcwOTA2OTF8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Happy teen eating healthy, useful for onboarding",
+        "category": "onboarding"
+      }
+    ],
+    "icons": "lucide-react with strokeWidth={2.5} for a chunkier, friendlier feel."
+  },
+  "libraries": {
+    "charts": "recharts for weekly tracking (bar/line), custom SVGs for daily chunky rings.",
+    "animation": "framer-motion for tab bar active indicator and scan button pulse."
+  },
+  "instructions_to_main_agent": [
+    "Build entirely as a mobile-first UI. For desktop view, wrap the main app in a max-w-md mx-auto container with relative positioning and overflow-hidden to mimic a mobile screen.",
+    "Never use fully transparent backgrounds behind text if there's an image. Use backdrop-blur and a semi-solid color.",
+    "For the bottom tab bar, ensure safe-area padding at the bottom (pb-6 or pb-safe). The central 'Scan' button must break out of the tab bar upwards, using absolute positioning (-top-6).",
+    "Data rings in the Nutrition Dashboard should be thick, colorful, and friendly, not thin and corporate.",
+    "Use JS files (.js/.jsx) as per the environment constraints. Do not output .tsx files.",
+    "Ensure the orange accent is used explicitly for warnings (sodium, sugar).",
+    "Embed `data-testid` on all inputs, buttons, and tab links.",
+    "Language is bilingual ID/EN - provide a toggle in Profile and mock bilingual strings."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Do not use dark colors as gradients.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) for sticky navs and tab bars.",
+    "You MUST NOT apply universal transition (transition: all).",
+    "You MUST NOT center align the app container text globally.",
+    "Always use modern button styles (pill-shaped, bouncy interaction).",
+    "NEVER use AI assistant Emoji characters (\ud83e\udd16\ud83e\udde0) for icons.",
+    "Prioritize existing ui components before creating new ones.",
+    "Use sonner for toasts (located in ui/sonner.jsx)."
+  ]
+}

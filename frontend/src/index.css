@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #E9ECE4;
+}
+
+::selection { background: #22C55E; color: #fff; }
+
+@layer base {
+    :root {
+        --background: 90 20% 98%;
+        --foreground: 0 0% 10%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 10%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 10%;
+        --primary: 142 71% 45%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 96 25% 94%;
+        --secondary-foreground: 0 0% 10%;
+        --muted: 96 25% 94%;
+        --muted-foreground: 0 0% 40%;
+        --accent: 96 25% 94%;
+        --accent-foreground: 0 0% 10%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 140 20% 90%;
+        --input: 140 20% 90%;
+        --ring: 142 71% 45%;
+        --radius: 1rem;
+    }
+}
+
+@layer base {
+    * { @apply border-border; }
+    body { @apply text-foreground; }
+}
+
+h1, h2, h3 { font-family: "Nunito", sans-serif; }
