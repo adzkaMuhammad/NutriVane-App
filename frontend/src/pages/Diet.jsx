@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useI18n } from "@/i18n";
 import { toast } from "sonner";
 import { Loader2, Dumbbell, Utensils, Lightbulb, Sparkles, AlertTriangle, Flame } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Diet() {
   const { user } = useAuth();
@@ -13,7 +14,7 @@ export default function Diet() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     target_weight_kg: user?.weight_kg || 55,
-    days: 30, intensity: "santai", meals_per_day: "3", budget: "terjangkau",
+    duration_value: 30, duration_unit: "hari", intensity: "santai", meals_per_day: "3", budget: "terjangkau",
   });
 
   useEffect(() => {
@@ -27,8 +28,11 @@ export default function Diet() {
   const submit = async () => {
     setLoading(true);
     try {
+      const mult = { hari: 1, bulan: 30, tahun: 365 }[form.duration_unit] || 1;
+      const days = Math.max(Math.round(Number(form.duration_value || 0) * mult), 1);
       const { data } = await api.post("/diet/plan", {
-        ...form, target_weight_kg: Number(form.target_weight_kg), days: Number(form.days), language: lang,
+        target_weight_kg: Number(form.target_weight_kg), days,
+        intensity: form.intensity, meals_per_day: form.meals_per_day, budget: form.budget, language: lang,
       });
       setPlan(data); setEditing(false);
       toast.success(t("savedNote"));
@@ -42,6 +46,10 @@ export default function Diet() {
     <button data-testid={testid} onClick={onClick} type="button"
       className={`px-4 h-11 rounded-full font-semibold text-sm active:scale-95 transition-transform border ${active ? "bg-[#22C55E] text-white border-[#22C55E]" : "bg-white text-[#5C5C5C] border-green-900/10"}`}>{children}</button>
   );
+
+  const durMult = { hari: 1, bulan: 30, tahun: 365 }[form.duration_unit] || 1;
+  const totalDays = Math.max(Math.round(Number(form.duration_value || 0) * durMult), 1);
+  const sliderMax = form.duration_unit === "hari" ? 365 : form.duration_unit === "bulan" ? 24 : 10;
 
   if (editing === null) {
     return <div className="min-h-screen bg-[#F9F9F6] flex items-center justify-center text-[#5C5C5C]">{t("loading")}</div>;
@@ -67,10 +75,25 @@ export default function Diet() {
 
           <div>
             <label className="text-xs uppercase tracking-wider font-semibold text-[#5C5C5C]">{t("durationDays")}</label>
-            <div className="flex items-center gap-3 mt-2">
-              <input data-testid="input-days" type="range" min="7" max="180" step="1" value={form.days} onChange={(e) => upd("days", e.target.value)} className="flex-1 accent-[#22C55E]" />
-              <span className="font-extrabold text-[#16A34A] w-20 text-right" style={{ fontFamily: "Nunito" }}>{form.days} {t("daysUnit")}</span>
+            <div className="flex items-center gap-2 mt-2">
+              <input data-testid="input-duration-value" type="number" min="1" inputMode="numeric"
+                value={form.duration_value} onChange={(e) => upd("duration_value", e.target.value)}
+                className="w-24 h-12 px-4 rounded-2xl bg-white border border-green-900/10 focus:border-[#22C55E] outline-none font-bold text-[#1A1A1A]" />
+              <Select value={form.duration_unit} onValueChange={(v) => upd("duration_unit", v)}>
+                <SelectTrigger data-testid="select-duration-unit" className="flex-1 h-12 rounded-2xl bg-white border-green-900/10 font-semibold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hari" data-testid="unit-hari">{t("daysUnit")}</SelectItem>
+                  <SelectItem value="bulan" data-testid="unit-bulan">{t("monthsUnit")}</SelectItem>
+                  <SelectItem value="tahun" data-testid="unit-tahun">{t("yearsUnit")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <input data-testid="input-days" type="range" min="1" max={sliderMax} step="1"
+              value={Math.min(Number(form.duration_value) || 1, sliderMax)} onChange={(e) => upd("duration_value", e.target.value)}
+              className="w-full mt-3 accent-[#22C55E]" />
+            <p className="text-xs text-[#9aa39a] mt-1">≈ <span className="font-bold text-[#16A34A]">{totalDays}</span> {t("daysUnit")}</p>
           </div>
 
           <div>
