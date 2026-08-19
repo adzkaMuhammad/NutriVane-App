@@ -63,6 +63,29 @@ const STR = {
     planMenuLabel: "Saran Menu", planExerciseLabel: "Rekomendasi Olahraga", planTipsLabel: "Tips",
     savedNote: "Rencana tersimpan & tampil di Beranda 🎉", resetPlan: "Ganti Rencana",
     todayMeals: "Makan Hari Ini", exercisePlan: "Rekomendasi Olahraga",
+    // menu
+    menuTitle: "Menu", navHome: "Beranda",
+    // mood combined
+    moodPageTitle: "Mood Harian", moodPageHint: "Catat perasaanmu — lewat emoji, cerita, atau foto wajah",
+    pickEmoji: "Pilih emoji", orStory: "Atau ceritakan harimu",
+    storyPlaceholder: "Hari ini aku merasa...", analyzeStory: "Analisis Mood dari Cerita",
+    analyzingStory: "Menganalisis cerita...", orFace: "Atau deteksi dari foto wajah",
+    saveMood: "Simpan Mood", moodSaved: "Mood tersimpan!", moodHistory: "Riwayat Mood",
+    noMoodYet: "Belum ada catatan mood. Yuk mulai!",
+    emo_sedih: "Sedih", emo_cemas: "Cemas", emo_biasa: "Biasa", emo_baik: "Baik", emo_senang: "Senang",
+    getFoodRecs: "Rekomendasi Makanan",
+    // journal
+    journalTitle: "Jurnal", journalHint: "Tulis catatan bebas, tambah foto & tag",
+    journalPlaceholder: "Apa yang ada di pikiranmu hari ini?", addPhoto: "Tambah Foto",
+    tagsLabel: "Tag", tagFood: "Makanan", tagSport: "Olahraga", tagEmotion: "Emosi",
+    saveEntry: "Simpan Catatan", entrySaved: "Catatan tersimpan!",
+    noJournal: "Belum ada catatan. Mulai menulis ceritamu!", uploading: "Mengunggah foto...",
+    // weekly analysis
+    weeklyTitle: "Analisis Mingguan AI", weeklyHint: "AI membaca pola makan & mood 7 hari terakhir",
+    runAnalysis: "Buat Analisis", runningAnalysis: "AI sedang menganalisis...",
+    patternsLabel: "Pola yang Terlihat", recsLabel: "3 Rekomendasi", nutritionSummaryLabel: "Ringkasan Gizi",
+    noAnalysis: "Belum ada analisis. Buat sekarang!", regenerate: "Buat Ulang",
+    weekSummaryLabel: "Ringkasan Minggu Ini",
   },
   en: {
     appName: "NutriVane",
@@ -120,6 +143,29 @@ const STR = {
     planMenuLabel: "Menu Suggestions", planExerciseLabel: "Workout Recommendations", planTipsLabel: "Tips",
     savedNote: "Plan saved & shown on Home 🎉", resetPlan: "Change Plan",
     todayMeals: "Today's Meals", exercisePlan: "Workout Recommendations",
+    // menu
+    menuTitle: "Menu", navHome: "Home",
+    // mood combined
+    moodPageTitle: "Daily Mood", moodPageHint: "Log your feeling — via emoji, story, or a selfie",
+    pickEmoji: "Pick an emoji", orStory: "Or tell your day",
+    storyPlaceholder: "Today I feel...", analyzeStory: "Analyze Mood from Story",
+    analyzingStory: "Analyzing your story...", orFace: "Or detect from a face photo",
+    saveMood: "Save Mood", moodSaved: "Mood saved!", moodHistory: "Mood History",
+    noMoodYet: "No mood logs yet. Let's start!",
+    emo_sedih: "Sad", emo_cemas: "Anxious", emo_biasa: "Okay", emo_baik: "Good", emo_senang: "Happy",
+    getFoodRecs: "Food Recommendations",
+    // journal
+    journalTitle: "Journal", journalHint: "Free notes with photos & tags",
+    journalPlaceholder: "What's on your mind today?", addPhoto: "Add Photo",
+    tagsLabel: "Tags", tagFood: "Food", tagSport: "Exercise", tagEmotion: "Emotion",
+    saveEntry: "Save Entry", entrySaved: "Entry saved!",
+    noJournal: "No entries yet. Start writing your story!", uploading: "Uploading photo...",
+    // weekly analysis
+    weeklyTitle: "Weekly AI Analysis", weeklyHint: "AI reads your last 7 days of food & mood",
+    runAnalysis: "Generate Analysis", runningAnalysis: "AI is analyzing...",
+    patternsLabel: "Patterns Spotted", recsLabel: "3 Recommendations", nutritionSummaryLabel: "Nutrition Summary",
+    noAnalysis: "No analysis yet. Generate one!", regenerate: "Regenerate",
+    weekSummaryLabel: "This Week's Summary",
   },
 };
 

@@ -1,10 +1,13 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import re
 import json
+import base64
+import uuid
+import requests
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
@@ -27,6 +30,41 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+
+# ---------------- object storage ----------------
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+APP_NAME = "nutrivane"
+_storage_key = None
+
+def init_storage(force: bool = False):
+    global _storage_key
+    if _storage_key and not force:
+        return _storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_LLM_KEY}, timeout=30)
+    resp.raise_for_status()
+    _storage_key = resp.json()["storage_key"]
+    return _storage_key
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    resp = requests.put(f"{STORAGE_URL}/objects/{path}",
+                        headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
+    if resp.status_code == 404:
+        key = init_storage(force=True)
+        resp = requests.put(f"{STORAGE_URL}/objects/{path}",
+                            headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
+    resp.raise_for_status()
+    return resp.json()
+
+def get_object(path: str):
+    key = init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    if resp.status_code == 404:
+        key = init_storage(force=True)
+        resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -478,6 +516,192 @@ async def dashboard(date: Optional[str] = None, user: dict = Depends(get_current
                      "sodium_mg": s["sodium_mg"], "sugar_g": s["sugar_g"]})
     return {"date": d, "totals": totals, "targets": targets, "week": week, "diet_plan": plan}
 
+# ---------------- mood log, journal, weekly analysis, files ----------------
+def _uid_from_token(token: str):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload.get("sub")
+    except Exception:
+        return None
+
+class MoodTextIn(BaseModel):
+    story: str
+    language: str = "id"
+
+@api_router.post("/mood/analyze-text")
+async def mood_analyze_text(body: MoodTextIn, user: dict = Depends(get_current_user)):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI key not configured")
+    lang = "Bahasa Indonesia" if body.language == "id" else "English"
+    system = ("You gently infer a person's mood from their short daily story/journal, for a teen wellness app. "
+              "Non-clinical, warm. Return ONLY JSON, no markdown.")
+    prompt = (
+        f"Story: \"{body.story}\". Reply readable fields in {lang}. Return JSON: "
+        "{\"mood\": one of [senang, biasa, lelah, sedih, stres, cemas, marah] (use these Indonesian keys), "
+        "\"mood_label\": friendly label in target language, \"emoji\": single emoji, "
+        "\"confidence\": \"low\"|\"medium\"|\"high\", \"note\": one short warm supportive sentence}."
+    )
+    try:
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"moodtext-{user['id']}", system_message=system)
+        chat.with_model("gemini", "gemini-3-flash-preview")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        data = parse_json_block(resp if isinstance(resp, str) else str(resp))
+    except Exception as e:
+        logger.exception("mood text failed")
+        raise HTTPException(status_code=502, detail=f"AI analisis cerita gagal: {str(e)[:120]}")
+    return data
+
+class MoodLogIn(BaseModel):
+    mood: str
+    mood_label: Optional[str] = None
+    emoji: Optional[str] = None
+    source: str = "emoji"
+    note: Optional[str] = None
+    date: Optional[str] = None
+
+@api_router.post("/mood/log")
+async def mood_log(body: MoodLogIn, user: dict = Depends(get_current_user)):
+    doc = {"user_id": user["id"], "date": body.date or today_str(), "mood": body.mood,
+           "mood_label": body.mood_label, "emoji": body.emoji, "source": body.source,
+           "note": body.note, "created_at": datetime.now(timezone.utc).isoformat()}
+    res = await db.mood_logs.insert_one(doc)
+    doc["id"] = str(res.inserted_id); doc.pop("_id", None)
+    return doc
+
+@api_router.get("/mood/logs")
+async def get_mood_logs(user: dict = Depends(get_current_user)):
+    items = await db.mood_logs.find({"user_id": user["id"]}).sort("created_at", -1).to_list(100)
+    for it in items:
+        it["id"] = str(it["_id"]); it.pop("_id", None)
+    return items
+
+@api_router.delete("/mood/log/{mid}")
+async def del_mood_log(mid: str, user: dict = Depends(get_current_user)):
+    await db.mood_logs.delete_one({"_id": ObjectId(mid), "user_id": user["id"]})
+    return {"ok": True}
+
+class UploadIn(BaseModel):
+    image_base64: str
+    filename: str = "photo.jpg"
+
+@api_router.post("/journal/upload")
+async def journal_upload(body: UploadIn, user: dict = Depends(get_current_user)):
+    b64 = body.image_base64
+    ct = "image/jpeg"
+    if b64.strip().startswith("data:"):
+        header, b64 = b64.split(",", 1)
+        if "image/png" in header: ct = "image/png"
+        elif "image/webp" in header: ct = "image/webp"
+    raw = base64.b64decode(b64)
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Foto terlalu besar (maks 8MB)")
+    ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}.get(ct, "jpg")
+    path = f"{APP_NAME}/uploads/{user['id']}/{uuid.uuid4()}.{ext}"
+    try:
+        result = put_object(path, raw, ct)
+    except Exception as e:
+        logger.exception("upload failed")
+        raise HTTPException(status_code=502, detail="Upload foto gagal")
+    await db.files.insert_one({"storage_path": result["path"], "content_type": ct,
+                              "user_id": user["id"], "is_deleted": False,
+                              "created_at": datetime.now(timezone.utc).isoformat()})
+    return {"path": result["path"]}
+
+class JournalIn(BaseModel):
+    content: str
+    tags: List[str] = []
+    photo_path: Optional[str] = None
+
+@api_router.post("/journal")
+async def create_journal(body: JournalIn, user: dict = Depends(get_current_user)):
+    doc = {"user_id": user["id"], "content": body.content, "tags": body.tags,
+           "photo_path": body.photo_path, "date": today_str(),
+           "created_at": datetime.now(timezone.utc).isoformat()}
+    res = await db.journals.insert_one(doc)
+    doc["id"] = str(res.inserted_id); doc.pop("_id", None)
+    return doc
+
+@api_router.get("/journal")
+async def list_journal(user: dict = Depends(get_current_user)):
+    items = await db.journals.find({"user_id": user["id"]}).sort("created_at", -1).to_list(200)
+    for it in items:
+        it["id"] = str(it["_id"]); it.pop("_id", None)
+    return items
+
+@api_router.delete("/journal/{jid}")
+async def del_journal(jid: str, user: dict = Depends(get_current_user)):
+    await db.journals.delete_one({"_id": ObjectId(jid), "user_id": user["id"]})
+    return {"ok": True}
+
+@api_router.get("/files/{path:path}")
+async def serve_file(path: str, auth: str = None):
+    uid = _uid_from_token(auth) if auth else None
+    if not uid:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    rec = await db.files.find_one({"storage_path": path, "user_id": uid, "is_deleted": False})
+    if not rec:
+        raise HTTPException(status_code=404, detail="File not found")
+    data, ct = get_object(path)
+    return Response(content=data, media_type=rec.get("content_type", ct))
+
+class WeeklyIn(BaseModel):
+    language: str = "id"
+
+@api_router.get("/analysis/weekly")
+async def get_weekly(user: dict = Depends(get_current_user)):
+    rep = await db.weekly_reports.find_one({"user_id": user["id"]}, sort=[("created_at", -1)])
+    if rep:
+        rep["id"] = str(rep["_id"]); rep.pop("_id", None)
+    return rep
+
+@api_router.post("/analysis/weekly")
+async def run_weekly(body: WeeklyIn, user: dict = Depends(get_current_user)):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI key not configured")
+    base = datetime.now(timezone.utc)
+    since = (base - timedelta(days=7)).strftime("%Y-%m-%d")
+    foods = await db.food_logs.find({"user_id": user["id"], "date": {"$gte": since}}).to_list(500)
+    moods = await db.mood_logs.find({"user_id": user["id"], "date": {"$gte": since}}).to_list(200)
+    food_lines, week_totals = [], []
+    for l in foods:
+        s = sum_items(l.get("items", []))
+        names = ", ".join((i.get("name_id") or i.get("name_en") or "?") for i in l.get("items", []))
+        food_lines.append(f"{l['date']} {l.get('meal')}: {names} (~{s['calories']}kcal, protein {s['protein_g']}g, gula {s['sugar_g']}g, natrium {s['sodium_mg']}mg)")
+    mood_lines = [f"{m.get('date')}: {m.get('mood_label') or m.get('mood')} {m.get('emoji') or ''} - {m.get('note') or ''}" for m in moods]
+    lang = "Bahasa Indonesia" if body.language == "id" else "English"
+    targets = user.get("diet_plan", {}).get("daily_targets") or compute_targets(user)
+    system = ("You are a supportive Indonesian nutrition & wellness coach for teens. Analyze the last 7 days "
+              "of food logs and mood logs, connect patterns between mood and eating, and give practical, kind advice. "
+              "Return ONLY JSON, no markdown.")
+    prompt = (
+        f"Daily calorie target: {targets['calories']} kcal, sugar limit {targets['sugar_g']}g, sodium {targets['sodium_mg']}mg.\n"
+        f"FOOD LOGS:\n" + ("\n".join(food_lines) or "(kosong)") + "\n\n"
+        f"MOOD LOGS:\n" + ("\n".join(mood_lines) or "(kosong)") + "\n\n"
+        f"Reply readable fields in {lang}. Return JSON: {{"
+        "\"summary\": 2-3 sentence warm overview of the week, "
+        "\"patterns\": [up to 3 short observed patterns linking mood & food], "
+        "\"recommendations\": [exactly 3 short actionable tips], "
+        "\"nutrition_summary\": 1-2 sentence nutrition takeaway}. "
+        "If data is empty, gently encourage the user to start logging."
+    )
+    try:
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"weekly-{user['id']}", system_message=system)
+        chat.with_model("anthropic", "claude-haiku-4-5-20251001")
+        resp = await chat.send_message(UserMessage(text=prompt))
+        data = parse_json_block(resp if isinstance(resp, str) else str(resp))
+    except Exception as e:
+        logger.exception("weekly analysis failed")
+        raise HTTPException(status_code=502, detail=f"AI analisis mingguan gagal: {str(e)[:120]}")
+    report = {"user_id": user["id"], "summary": data.get("summary", ""),
+              "patterns": data.get("patterns", []), "recommendations": data.get("recommendations", []),
+              "nutrition_summary": data.get("nutrition_summary", ""),
+              "food_days": len({l["date"] for l in foods}), "mood_count": len(moods),
+              "created_at": datetime.now(timezone.utc).isoformat()}
+    res = await db.weekly_reports.insert_one(dict(report))
+    report["id"] = str(res.inserted_id)
+    report.pop("_id", None)
+    return report
+
 # ---------------- seed ----------------
 INDO_FOODS = [
     {"name_id": "Nasi Putih", "name_en": "White Rice", "portion": "1 centong (100g)", "grams": 100, "calories": 130, "protein_g": 2.7, "carbs_g": 28, "fat_g": 0.3, "sodium_mg": 1, "sugar_g": 0.1},
@@ -546,6 +770,13 @@ async def seed_demo():
 async def on_startup():
     await db.users.create_index("email", unique=True)
     await db.food_logs.create_index([("user_id", 1), ("date", 1)])
+    await db.mood_logs.create_index([("user_id", 1), ("date", 1)])
+    await db.journals.create_index([("user_id", 1)])
+    try:
+        init_storage()
+        logger.info("Storage initialized")
+    except Exception as e:
+        logger.error(f"Storage init failed: {e}")
     await seed_foods()
     await seed_demo()
 

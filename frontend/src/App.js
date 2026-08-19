@@ -7,10 +7,13 @@ import Auth from "@/pages/Auth";
 import Onboarding from "@/pages/Onboarding";
 import Home from "@/pages/Home";
 import Scan from "@/pages/Scan";
-import MoodFood from "@/pages/MoodFood";
+import Mood from "@/pages/Mood";
 import Diet from "@/pages/Diet";
+import Journal from "@/pages/Journal";
+import WeeklyAnalysis from "@/pages/WeeklyAnalysis";
 import History from "@/pages/History";
 import Profile from "@/pages/Profile";
+import AppMenu from "@/components/AppMenu";
 
 function Protected({ children, hideTab }) {
   const { user, ready } = useAuth();
@@ -21,6 +24,7 @@ function Protected({ children, hideTab }) {
   return (
     <>
       {children}
+      {!hideTab && <AppMenu />}
       {!hideTab && <BottomTabBar />}
     </>
   );
@@ -44,8 +48,10 @@ function App() {
               <Route path="/onboarding" element={<Protected hideTab><Onboarding /></Protected>} />
               <Route path="/home" element={<Protected><Home /></Protected>} />
               <Route path="/scan" element={<Protected><Scan /></Protected>} />
-              <Route path="/mood" element={<Protected><MoodFood /></Protected>} />
+              <Route path="/mood" element={<Protected><Mood /></Protected>} />
               <Route path="/diet" element={<Protected><Diet /></Protected>} />
+              <Route path="/journal" element={<Protected><Journal /></Protected>} />
+              <Route path="/weekly" element={<Protected><WeeklyAnalysis /></Protected>} />
               <Route path="/history" element={<Protected><History /></Protected>} />
               <Route path="/profile" element={<Protected><Profile /></Protected>} />
               <Route path="*" element={<Navigate to="/" replace />} />
