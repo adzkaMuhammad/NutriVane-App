@@ -269,6 +269,7 @@ async def scan_food(body: ScanIn, user: dict = Depends(get_current_user)):
     img_b64 = body.image_base64
     if "," in img_b64 and img_b64.strip().startswith("data:"):
         img_b64 = img_b64.split(",", 1)[1]
+    data = None
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"scan-{user['id']}", system_message=system)
         chat.with_model("gemini", "gemini-3-flash-preview")
@@ -297,6 +298,7 @@ async def scan_spice(body: ScanIn, user: dict = Depends(get_current_user)):
     img_b64 = body.image_base64
     if "," in img_b64 and img_b64.strip().startswith("data:"):
         img_b64 = img_b64.split(",", 1)[1]
+    data = None
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"spice-{user['id']}", system_message=system)
         chat.with_model("gemini", "gemini-3-flash-preview")
@@ -331,6 +333,7 @@ async def mood_detect(body: ScanIn, user: dict = Depends(get_current_user)):
     img = body.image_base64
     if "," in img and img.strip().startswith("data:"):
         img = img.split(",", 1)[1]
+    data = None
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"mood-{user['id']}", system_message=system)
         chat.with_model("gemini", "gemini-3-flash-preview")
@@ -360,6 +363,7 @@ async def mood_recommend(body: MoodRecommendIn, user: dict = Depends(get_current
         "\"emoji\": single food emoji, \"reason\": short why it helps this mood/craving, "
         "\"calories\": approx kcal number}]}."
     )
+    data = None
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"moodrec-{user['id']}", system_message=system)
         chat.with_model("gemini", "gemini-3-flash-preview")
@@ -394,6 +398,7 @@ def compute_diet(user: dict, target_weight: float, days: int, intensity: str) ->
     applied = min(daily_change, cap)
     days_min_safe = int((total_kcal / cap) + 0.999) if cap > 0 else days
     floor = 1500 if gender == "male" else 1200
+    calories = round(tdee)
     if direction == "lose":
         calories = max(round(tdee - applied), floor)
     elif direction == "gain":
@@ -541,6 +546,7 @@ async def mood_analyze_text(body: MoodTextIn, user: dict = Depends(get_current_u
         "\"mood_label\": friendly label in target language, \"emoji\": single emoji, "
         "\"confidence\": \"low\"|\"medium\"|\"high\", \"note\": one short warm supportive sentence}."
     )
+    data = None
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"moodtext-{user['id']}", system_message=system)
         chat.with_model("gemini", "gemini-3-flash-preview")
@@ -597,6 +603,7 @@ async def journal_upload(body: UploadIn, user: dict = Depends(get_current_user))
         raise HTTPException(status_code=413, detail="Foto terlalu besar (maks 8MB)")
     ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}.get(ct, "jpg")
     path = f"{APP_NAME}/uploads/{user['id']}/{uuid.uuid4()}.{ext}"
+    result = None
     try:
         result = put_object(path, raw, ct)
     except Exception as e:
@@ -662,7 +669,7 @@ async def run_weekly(body: WeeklyIn, user: dict = Depends(get_current_user)):
     since = (base - timedelta(days=7)).strftime("%Y-%m-%d")
     foods = await db.food_logs.find({"user_id": user["id"], "date": {"$gte": since}}).to_list(500)
     moods = await db.mood_logs.find({"user_id": user["id"], "date": {"$gte": since}}).to_list(200)
-    food_lines, week_totals = [], []
+    food_lines = []
     for l in foods:
         s = sum_items(l.get("items", []))
         names = ", ".join((i.get("name_id") or i.get("name_en") or "?") for i in l.get("items", []))
@@ -684,6 +691,7 @@ async def run_weekly(body: WeeklyIn, user: dict = Depends(get_current_user)):
         "\"nutrition_summary\": 1-2 sentence nutrition takeaway}. "
         "If data is empty, gently encourage the user to start logging."
     )
+    data = None
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"weekly-{user['id']}", system_message=system)
         chat.with_model("anthropic", "claude-haiku-4-5-20251001")

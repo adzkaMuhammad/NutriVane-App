@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import api, { apiErr } from "@/api";
 import { useI18n } from "@/i18n";
 import { toast } from "sonner";
@@ -26,8 +26,8 @@ export default function Mood() {
   const [recs, setRecs] = useState(null);
   const [logs, setLogs] = useState([]);
 
-  const loadLogs = () => api.get("/mood/logs").then((r) => setLogs(r.data)).catch(() => {});
-  useEffect(() => { loadLogs(); }, []);
+  const loadLogs = useCallback(() => api.get("/mood/logs").then((r) => setLogs(r.data)).catch(() => {}), []);
+  useEffect(() => { loadLogs(); }, [loadLogs]);
 
   const pickEmoji = (item) => {
     setMood({ mood: item.v, mood_label: t(`emo_${item.v}`), emoji: item.e, source: "emoji", note: null });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import api, { apiErr } from "@/api";
 import { useI18n } from "@/i18n";
 import { toast } from "sonner";
@@ -23,8 +23,8 @@ export default function Journal() {
   const [entries, setEntries] = useState([]);
   const token = localStorage.getItem("nv_token");
 
-  const load = () => api.get("/journal").then((r) => setEntries(r.data)).catch(() => {});
-  useEffect(() => { load(); }, []);
+  const load = useCallback(() => api.get("/journal").then((r) => setEntries(r.data)).catch(() => {}), []);
+  useEffect(() => { load(); }, [load]);
 
   const toggleTag = (id) => setTags((ts) => (ts.includes(id) ? ts.filter((x) => x !== id) : [...ts, id]));
 

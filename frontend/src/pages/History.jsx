@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "@/api";
 import { useI18n } from "@/i18n";
 import { toast } from "sonner";
@@ -10,10 +10,10 @@ export default function History() {
   const [date, setDate] = useState(today);
   const [logs, setLogs] = useState([]);
 
-  const load = (d) => {
+  const load = useCallback((d) => {
     api.get(`/logs/food?date=${d}`).then((r) => setLogs(r.data)).catch(() => {});
-  };
-  useEffect(() => { load(date); }, [date]);
+  }, []);
+  useEffect(() => { load(date); }, [date, load]);
 
   const del = async (id) => {
     await api.delete(`/logs/food/${id}`);
